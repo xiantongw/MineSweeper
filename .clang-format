@@ -1,0 +1,11 @@
+# Use a predefined style as a base
+BasedOnStyle: Google
+
+# Customize specific options
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 80
+BreakBeforeBraces: Attach
+AllowShortIfStatementsOnASingleLine: false
+AlignConsecutiveAssignments: true
