@@ -232,12 +232,13 @@ class Field {
             return;
         }
         currentCell.status = CellStatus::Opened;
-        if (countNeighbors(row, col) == 0) {
-            for (int drow = -1; drow <= 1; ++drow) {
-                for (int dcol = -1; dcol <= 1; ++dcol) {
-                    if (drow != 0 || dcol != 0)
-                        openAdjacentCells(row + drow, col + dcol);
-                }
+        if (countNeighbors(row, col) != 0) {
+            return;
+        }
+        for (int drow = -1; drow <= 1; ++drow) {
+            for (int dcol = -1; dcol <= 1; ++dcol) {
+                if (drow != 0 || dcol != 0)
+                    openAdjacentCells(row + drow, col + dcol);
             }
         }
     }
