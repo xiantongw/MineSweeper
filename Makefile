@@ -1,7 +1,7 @@
 .PHONY: clean
 
-main: main.cpp
-	g++ -std=c++17 -Wall -Wextra -O0 -g -fsanitize=address,undefined -o main main.cpp
+MineSweeper: main.cpp
+	g++ -std=c++17 -o MineSweeper main.cpp
 
 clean:
-	rm -rf main main.dSYM
+	rm -rf MineSweeper

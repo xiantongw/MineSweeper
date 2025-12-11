@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <random>
@@ -275,13 +276,90 @@ void handleGameEnd(std::shared_ptr<Field> field, bool won) {
     return;
 }
 
-int main() {
+void printHelp(const char* programName) {
+    std::cout << "MineSweeper Game\n\n";
+    std::cout << "Usage: " << programName
+              << " start [rows cols bomb_percentage]\n\n";
+    std::cout << "Commands:\n";
+    std::cout
+        << "  start                        Start game with default settings\n";
+    std::cout << "  start <r> <c> <b>            Start with custom settings\n";
+    std::cout << "  -h, --help                   Show this help message\n\n";
+    std::cout << "Parameters:\n";
+    std::cout << "  rows              Number of rows (5-50, default: "
+              << DEFAULT_ROWS << ")\n";
+    std::cout << "  cols              Number of columns (5-50, default: "
+              << DEFAULT_COLS << ")\n";
+    std::cout << "  bomb_percentage   Percentage of bombs (1-90, default: "
+              << DEFAULT_BOMB_PERCENTAGE << ")\n\n";
+    std::cout << "Controls:\n";
+    std::cout << "  w/a/s/d    Move cursor\n";
+    std::cout << "  space      Open cell\n";
+    std::cout << "  f          Flag/unflag cell\n";
+    std::cout << "  q          Quit\n\n";
+    std::cout << "Examples:\n";
+    std::cout << "  " << programName << " start\n";
+    std::cout << "  " << programName << " start 15 20 20\n";
+}
+
+int main(int argc, char* argv[]) {
+    // Parse command-line arguments
+    int rows           = DEFAULT_ROWS;
+    int cols           = DEFAULT_COLS;
+    int bombPercentage = DEFAULT_BOMB_PERCENTAGE;
+
+    // Default: print help
+    if (argc == 1) {
+        printHelp(argv[0]);
+        return 0;
+    }
+
+    // Check for help flag
+    if (std::string(argv[1]) == "-h" || std::string(argv[1]) == "--help") {
+        printHelp(argv[0]);
+        return 0;
+    }
+
+    // Check for start command
+    if (std::string(argv[1]) == "start") {
+        // Use default values
+        if (argc == 5) {
+            // User provided custom parameters: must have all 3
+            rows           = std::atoi(argv[2]);
+            cols           = std::atoi(argv[3]);
+            bombPercentage = std::atoi(argv[4]);
+        } else if (argc != 2) {
+            std::cerr << "Error: Must provide all 3 parameters (rows, cols, "
+                         "bomb_percentage) or none\n";
+            std::cerr << "Usage: " << argv[0]
+                      << " start [rows cols bomb_percentage]\n";
+            return 1;
+        }
+    } else {
+        std::cerr << "Error: Unknown command '" << argv[1] << "'\n";
+        std::cerr << "Use 'start' to begin game or '-h' for help\n";
+        return 1;
+    }
+
+    // Validate parameters
+    if (rows < 5 || rows > 50) {
+        std::cerr << "Error: rows must be between 5 and 50\n";
+        return 1;
+    }
+    if (cols < 5 || cols > 50) {
+        std::cerr << "Error: cols must be between 5 and 50\n";
+        return 1;
+    }
+    if (bombPercentage < 1 || bombPercentage > 90) {
+        std::cerr << "Error: bomb_percentage must be between 1 and 90\n";
+        return 1;
+    }
+
     auto terminal  = std::make_unique<TerminalMode>();
     bool firstStep = true;
     bool quit      = false;
 
-    auto field = std::make_shared<Field>(DEFAULT_ROWS, DEFAULT_COLS,
-                                         DEFAULT_BOMB_PERCENTAGE);
+    auto field = std::make_shared<Field>(rows, cols, bombPercentage);
     field->print(false);
 
     while (!quit) {
@@ -304,7 +382,7 @@ int main() {
                 break;
             case 'f':
                 field->flagCell();
-                if (field->checkWin()) {
+                if (field->checkWin() && !firstStep) {
                     handleGameEnd(field, true);
                     quit = true;
                 }
