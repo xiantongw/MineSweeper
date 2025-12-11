@@ -113,13 +113,13 @@ class Field {
     }
 
     void randomize() {
-        int bombCount = m_numRows * m_numCols * m_bombPercentage / 100;
-        for (int i = 1; i <= bombCount; ++i) {
+        m_numBombs = m_numRows * m_numCols * m_bombPercentage / 100;
+        for (int i = 1; i <= m_numBombs; ++i) {
             while (true) {
-                int complexIndex = getRandomCellIndex();
-                int random_row   = complexIndex / m_numRows;
+                int randomFlatIndex = getRandomCellIndex();
+                int random_row      = randomFlatIndex / m_numRows;
                 // avoid mod, which is slow
-                int random_col = complexIndex - random_row * m_numRows;
+                int random_col = randomFlatIndex - random_row * m_numRows;
                 if (!isAroundCursor(random_row, random_col)) {
                     Cell& cell = m_field[random_row][random_col];
                     if (cell.content != CellContent::Bomb) {
@@ -134,11 +134,8 @@ class Field {
     int getRandomCellIndex() {
         static std::random_device rd;
         static std::mt19937 gen(rd());
-        std::uniform_int_distribution<> disRow(0, m_numRows - 1);
-        std::uniform_int_distribution<> disCol(0, m_numCols - 1);
-        int random_row = disRow(gen);
-        int random_col = disCol(gen);
-        return random_row * m_numRows + random_col;
+        std::uniform_int_distribution<> dis(0, m_numRows * m_numCols - 1);
+        return dis(gen);
     }
 
     bool insideField(int row, int col) {
@@ -210,13 +207,30 @@ class Field {
         return false;
     }
 
+    bool checkWin() {
+        int numFlagged = 0;
+        for (int i = 0; i < m_numRows; ++i) {
+            for (int j = 0; j < m_numCols; ++j) {
+                Cell& cell = m_field[i][j];
+                if (cell.content == CellContent::Bomb) {
+                    if (cell.status != CellStatus::Flagged) {
+                        return false;
+                    } else {
+                        numFlagged++;
+                    }
+                }
+            }
+        }
+        return numFlagged == m_numBombs;
+    }
+
     int getNumRows() { return m_numRows; }
     int getNumCols() { return m_numCols; }
 
    private:
     int m_numRows, m_numCols;
     int m_cursorRow, m_cursorCol;
-    int m_bombPercentage;
+    int m_bombPercentage, m_numBombs;
     std::vector<std::vector<Cell>> m_field;
 };
 
@@ -248,6 +262,13 @@ int main() {
                 break;
             case 'f':
                 field->flagCell();
+                if (field->checkWin()) {
+                    std::cout << "\033[" << field->getNumRows() << "A";
+                    std::cout << "\033[" << (3 * field->getNumCols()) << "D";
+                    field->print(false);
+                    std::cout << "You Win!\n";
+                    quit = true;
+                }
                 break;
             case ' ':
                 if (firstStep) {
