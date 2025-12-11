@@ -8,6 +8,12 @@
 #include <random>
 #include <vector>
 
+// consts
+constexpr int DEFAULT_ROWS            = 10;
+constexpr int DEFAULT_COLS            = 10;
+constexpr int DEFAULT_BOMB_PERCENTAGE = 10;
+constexpr int CELL_WIDTH              = 3;
+
 class TerminalMode {
    public:
     TerminalMode() {
@@ -27,7 +33,7 @@ class TerminalMode {
 
     ~TerminalMode() { tcsetattr(STDIN_FILENO, TCSANOW, &m_savedAttributes); }
 
-    char yield() {
+    char readCmd() {
         char buf = 0;
         if (read(STDIN_FILENO, &buf, 1) < 0) {
             perror("read()");
@@ -60,6 +66,11 @@ class Field {
         m_cursorCol = 0;
         m_cursorRow = 0;
         m_field.resize(m_numRows, std::vector<Cell>(m_numCols));
+    }
+
+    void refreshDisplay() {
+        std::cout << "\033[" << getNumRows() << "A";
+        std::cout << "\033[" << (CELL_WIDTH * getNumCols()) << "D";
     }
 
     void print(bool gameOver) {
@@ -117,9 +128,8 @@ class Field {
         for (int i = 1; i <= m_numBombs; ++i) {
             while (true) {
                 int randomFlatIndex = getRandomCellIndex();
-                int random_row      = randomFlatIndex / m_numRows;
-                // avoid mod, which is slow
-                int random_col = randomFlatIndex - random_row * m_numRows;
+                int random_row      = randomFlatIndex / m_numCols;
+                int random_col      = randomFlatIndex % m_numCols;
                 if (!isAroundCursor(random_row, random_col)) {
                     Cell& cell = getCell(random_row, random_col);
                     if (cell.content != CellContent::Bomb) {
@@ -151,6 +161,9 @@ class Field {
         int counter = 0;
         for (int drow = -1; drow <= 1; ++drow) {
             for (int dcol = -1; dcol <= 1; ++dcol) {
+                if (drow == 0 && dcol == 0) {
+                    continue;
+                }
                 if (insideField(row + drow, col + dcol)) {
                     Cell& currentCell = getCell(row + drow, col + dcol);
                     if (currentCell.content == CellContent::Bomb) {
@@ -255,16 +268,24 @@ class Field {
     std::vector<std::vector<Cell>> m_field;
 };
 
+void handleGameEnd(std::shared_ptr<Field> field, bool won) {
+    field->refreshDisplay();
+    field->print(!won);
+    std::cout << (won ? "You win!\n" : "Game Over\n");
+    return;
+}
+
 int main() {
     auto terminal  = std::make_unique<TerminalMode>();
     bool firstStep = true;
     bool quit      = false;
 
-    auto field = std::make_unique<Field>(10, 10, 10);
+    auto field = std::make_shared<Field>(DEFAULT_ROWS, DEFAULT_COLS,
+                                         DEFAULT_BOMB_PERCENTAGE);
     field->print(false);
 
     while (!quit) {
-        char cmd = terminal->yield();
+        char cmd = terminal->readCmd();
         switch (cmd) {
             case 'q':
                 quit = true;
@@ -284,10 +305,7 @@ int main() {
             case 'f':
                 field->flagCell();
                 if (field->checkWin()) {
-                    std::cout << "\033[" << field->getNumRows() << "A";
-                    std::cout << "\033[" << (3 * field->getNumCols()) << "D";
-                    field->print(false);
-                    std::cout << "You Win!\n";
+                    handleGameEnd(field, true);
                     quit = true;
                 }
                 break;
@@ -297,18 +315,14 @@ int main() {
                     firstStep = false;
                 }
                 if (field->openCell()) {
-                    std::cout << "\033[" << field->getNumRows() << "A";
-                    std::cout << "\033[" << (3 * field->getNumCols()) << "D";
-                    field->print(true);
-                    std::cout << "Game Over!\n";
+                    handleGameEnd(field, false);
                     quit = true;
                 }
                 break;
         }
 
         if (!quit && cmd != 'q') {
-            std::cout << "\033[" << field->getNumRows() << "A";
-            std::cout << "\033[" << (3 * field->getNumCols()) << "D";
+            field->refreshDisplay();
             field->print(false);
         }
     }
