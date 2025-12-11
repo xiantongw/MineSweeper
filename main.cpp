@@ -2,6 +2,7 @@
 #include <unistd.h>
 
 #include <cassert>
+#include <cmath>
 #include <iostream>
 #include <memory>
 #include <random>
@@ -107,27 +108,37 @@ class Field {
         }
     }
 
+    bool isAroundCursor(int row, int col) {
+        return abs(row - m_cursorRow) <= 1 && abs(col - m_cursorCol) <= 1;
+    }
+
     void randomize() {
         int bombCount = m_numRows * m_numCols * m_bombPercentage / 100;
         for (int i = 1; i <= bombCount; ++i) {
             while (true) {
-                Cell& cell = getRandomCell();
-                if (cell.content != CellContent::Bomb) {
-                    cell.content = CellContent::Bomb;
-                    break;
+                int complexIndex = getRandomCellIndex();
+                int random_row   = complexIndex / m_numRows;
+                // avoid mod, which is slow
+                int random_col = complexIndex - random_row * m_numRows;
+                if (!isAroundCursor(random_row, random_col)) {
+                    Cell& cell = m_field[random_row][random_col];
+                    if (cell.content != CellContent::Bomb) {
+                        cell.content = CellContent::Bomb;
+                        break;
+                    }
                 }
             }
         }
-        m_cursorCol = 0;
-        m_cursorRow = 0;
     }
 
-    Cell& getRandomCell() {
+    int getRandomCellIndex() {
         static std::random_device rd;
         static std::mt19937 gen(rd());
         std::uniform_int_distribution<> disRow(0, m_numRows - 1);
         std::uniform_int_distribution<> disCol(0, m_numCols - 1);
-        return m_field[disRow(gen)][disCol(gen)];
+        int random_row = disRow(gen);
+        int random_col = disCol(gen);
+        return random_row * m_numRows + random_col;
     }
 
     bool insideField(int row, int col) {
@@ -215,8 +226,6 @@ int main() {
     bool quit      = false;
 
     auto field = std::make_unique<Field>(10, 10, 10);
-    field->randomize();
-
     field->print(false);
 
     while (!quit) {
@@ -241,6 +250,10 @@ int main() {
                 field->flagCell();
                 break;
             case ' ':
+                if (firstStep) {
+                    field->randomize();
+                    firstStep = false;
+                }
                 if (field->openCell()) {
                     std::cout << "\033[" << field->getNumRows() << "A";
                     std::cout << "\033[" << (3 * field->getNumCols()) << "D";
