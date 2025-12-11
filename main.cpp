@@ -121,7 +121,7 @@ class Field {
                 // avoid mod, which is slow
                 int random_col = randomFlatIndex - random_row * m_numRows;
                 if (!isAroundCursor(random_row, random_col)) {
-                    Cell& cell = m_field[random_row][random_col];
+                    Cell& cell = getCell(random_row, random_col);
                     if (cell.content != CellContent::Bomb) {
                         cell.content = CellContent::Bomb;
                         break;
@@ -140,11 +140,6 @@ class Field {
 
     bool insideField(int row, int col) {
         return row >= 0 && row < m_numRows && col >= 0 && col < m_numCols;
-    }
-
-    void setCell(int row, int col, Cell cell) {
-        assert(insideField(row, col));
-        m_field[row][col] = cell;
     }
 
     Cell& getCell(int row, int col) {
@@ -200,18 +195,44 @@ class Field {
 
     bool openCell() {
         Cell& cursorCell = getCell(m_cursorRow, m_cursorCol);
-        if (cursorCell.status == CellStatus::Closed) {
-            cursorCell.status = CellStatus::Opened;
-            return cursorCell.content == CellContent::Bomb;
+        if (cursorCell.status != CellStatus::Closed) {
+            return false;
         }
+        if (cursorCell.content == CellContent::Bomb) {
+            cursorCell.status = CellStatus::Opened;
+            return true;
+        }
+        openAdjacentCells(m_cursorRow, m_cursorCol);
         return false;
+    }
+
+    void openAdjacentCells(int row, int col) {
+        if (!insideField(row, col)) {
+            return;
+        }
+        Cell& currentCell = getCell(row, col);
+        if (currentCell.status == CellStatus::Opened) {
+            return;
+        }
+        if (currentCell.content == CellContent::Bomb) {
+            return;
+        }
+        currentCell.status = CellStatus::Opened;
+        if (countNeighbors(row, col) == 0) {
+            for (int drow = -1; drow <= 1; ++drow) {
+                for (int dcol = -1; dcol <= 1; ++dcol) {
+                    if (drow != 0 || dcol != 0)
+                        openAdjacentCells(row + drow, col + dcol);
+                }
+            }
+        }
     }
 
     bool checkWin() {
         int numFlagged = 0;
         for (int i = 0; i < m_numRows; ++i) {
             for (int j = 0; j < m_numCols; ++j) {
-                Cell& cell = m_field[i][j];
+                Cell& cell = getCell(i, j);
                 if (cell.content == CellContent::Bomb) {
                     if (cell.status != CellStatus::Flagged) {
                         return false;
